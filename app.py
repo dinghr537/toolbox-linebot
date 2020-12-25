@@ -2,33 +2,54 @@ import os
 import sys
 
 from flask import Flask, jsonify, request, abort, send_file
+from flask import send_from_directory
 from dotenv import load_dotenv
 from linebot import LineBotApi, WebhookParser
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.models import ImageCarouselColumn, URITemplateAction, MessageTemplateAction
+from utils import send_text_message, send_button_message, send_image_message
+from google.cloud import translate_v2 as translate
+import html
+import random
+from sympy import preview
 
 from fsm import TocMachine
 from utils import send_text_message
 
 load_dotenv()
+translate_client = translate.Client()
 
+metaphysics_results = ["認為：尚可", "認為：大吉", "認為：小吉", "認為：凶", "認為：大凶", "你瘋了？", "這種事就隨便啦", "可惜天機不可洩漏"]
 
 machine = TocMachine(
-    states=["user", "state1", "state2"],
+    states=["user", "transToEnglish", "transToMandarin", "metaphysics", "latex"],
     transitions=[
         {
             "trigger": "advance",
             "source": "user",
-            "dest": "state1",
-            "conditions": "is_going_to_state1",
+            "dest": "transToEnglish",
+            "conditions": "is_going_to_transToEnglish",
         },
         {
             "trigger": "advance",
             "source": "user",
-            "dest": "state2",
-            "conditions": "is_going_to_state2",
+            "dest": "transToMandarin",
+            "conditions": "is_going_to_transToMandarin",
         },
-        {"trigger": "go_back", "source": ["state1", "state2"], "dest": "user"},
+        {
+            "trigger": "advance",
+            "source": "user",
+            "dest": "metaphysics",
+            "conditions": "is_going_to_metaphysics",
+        },
+        {
+            "trigger": "advance",
+            "source": "user",
+            "dest": "latex",
+            "conditions": "is_going_to_latex",
+        },
+        {"trigger": "go_back", "source": ["transToEnglish", "transToMandarin", "metaphysics", "latex"], "dest": "user"},
     ],
     initial="user",
     auto_transitions=False,
@@ -37,6 +58,29 @@ machine = TocMachine(
 
 app = Flask(__name__, static_url_path="")
 
+def welcome_with_different_title(title, event):
+    text = '啥事？'
+    btn = [
+        MessageTemplateAction(
+            label = '翻譯為英文',
+            text ='trans to en'
+        ),
+        MessageTemplateAction(
+            label = '翻譯為中文',
+            text = 'trans to zh'
+        ),
+        MessageTemplateAction(
+            label = '玄學時間',
+            text = 'metaphysics'
+        ),
+        MessageTemplateAction(
+            label = '生成latex圖片',
+            text = 'latex'
+        ),
+    ]
+    url = 'https://i.imgur.com/B8Y06MV.jpg'
+    # print(f"event.reply_token: {event.reply_token}")
+    send_button_message(event.reply_token, title, text, btn, url)
 
 # get channel_secret and channel_access_token from your environment variable
 channel_secret = os.getenv("LINE_CHANNEL_SECRET", None)
@@ -92,6 +136,10 @@ def webhook_handler():
     except InvalidSignatureError:
         abort(400)
 
+    # print("=========\n events:\n")
+    # print(events)
+    # print(body)
+    # print("============ finish \n")
     # if event is MessageEvent and message is TextMessage, then echo text
     for event in events:
         if not isinstance(event, MessageEvent):
@@ -102,10 +150,49 @@ def webhook_handler():
             continue
         print(f"\nFSM STATE: {machine.state}")
         print(f"REQUEST BODY: \n{body}")
+        if machine.state == "transToEnglish":
+            if event.message.text == "exit!!":
+                machine.go_back()
+                welcome_with_different_title('Welcome Back!', event)
+                continue
+            target = 'en'
+            result = translate_client.translate(event.message.text, target_language=target)
+            send_text_message(event.reply_token, html.unescape(result["translatedText"]))
+            continue
+        elif machine.state == "transToMandarin":
+            if event.message.text == "exit!!":
+                machine.go_back()
+                welcome_with_different_title('Welcome Back!', event)
+                continue
+            target = 'zh_TW'
+            result = translate_client.translate(event.message.text, target_language=target)
+            send_text_message(event.reply_token, html.unescape(result["translatedText"]))
+            continue
+        elif machine.state == "metaphysics":
+            if event.message.text == "exit!!":
+                machine.go_back()
+                welcome_with_different_title('Welcome Back!', event)
+                continue
+            result = metaphysics_results[random.randint(0,len(metaphysics_results)-1)]
+            send_text_message(event.reply_token, result)
+            continue
+        elif machine.state == "latex":
+            if event.message.text == "exit!!":
+                machine.go_back()
+                welcome_with_different_title('Welcome Back!', event)
+                continue
+            formula = r"$$" + event.message.text + r"$$"
+            preview(formula, viewer='file', filename='test.png', dvioptions=['-D','1200'])
+            url = "test.png"
+            send_image_message(event.reply_token, 'https://a31ddf4f99d7.ngrok.io/test.png')
         response = machine.advance(event)
         if response == False:
-            send_text_message(event.reply_token, "Not Entering any State")
+            title = '請先選擇要使用的功能'    
+            welcome_with_different_title(title, event)
+            # send_button_message(event.reply_token, title, text, btn, url)
+            # send_text_message(event.reply_token, "Try again")
 
+        # send_text_message(event.reply_token, "what's up")
     return "OK"
 
 
@@ -114,6 +201,14 @@ def show_fsm():
     machine.get_graph().draw("fsm.png", prog="dot", format="png")
     return send_file("fsm.png", mimetype="image/png")
 
+@app.route("/test.png", methods=["GET"])
+def show_latex():
+    return send_file("test.png", mimetype="image/png")
+
+# @app.route('/test.png', methods=['GET', 'POST'])
+# def download():
+#     uploads = os.path.join(current_app.root_path, app.config['UPLOAD_FOLDER'])
+#     return send_from_directory(directory="./", filename="test.png")
 
 if __name__ == "__main__":
     port = os.environ.get("PORT", 8000)
