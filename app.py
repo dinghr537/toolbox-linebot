@@ -20,20 +20,28 @@ from utils import send_text_message
 load_dotenv()
 translate_client = translate.Client()
 
-metaphysics_results = ["認為：尚可", "認為：大吉", "認為：小吉", "認為：凶", "認為：大凶", "你瘋了？", "這種事就隨便啦", "可惜天機不可洩漏"]
+URL = "https://09964949df7a.ngrok.io"
+
+metaphysics_results = ["尚可", "大吉", "挺不錯的", "可以考慮", "這好嗎？這不好！", "小吉", "凶", "大凶", "你瘋了？", "這種事就隨便啦", "可惜天機不可洩漏"]
 
 machine = TocMachine(
-    states=["user", "transToEnglish", "transToMandarin", "metaphysics", "latex"],
+    states=["user", "translate", "transToEnglish", "transToMandarin", "metaphysics", "latex"],
     transitions=[
         {
             "trigger": "advance",
-            "source": "user",
+            "source": "translate",
             "dest": "transToEnglish",
             "conditions": "is_going_to_transToEnglish",
         },
         {
             "trigger": "advance",
             "source": "user",
+            "dest": "translate",
+            "conditions": "is_going_to_translate",
+        },
+        {
+            "trigger": "advance",
+            "source": "translate",
             "dest": "transToMandarin",
             "conditions": "is_going_to_transToMandarin",
         },
@@ -49,7 +57,7 @@ machine = TocMachine(
             "dest": "latex",
             "conditions": "is_going_to_latex",
         },
-        {"trigger": "go_back", "source": ["transToEnglish", "transToMandarin", "metaphysics", "latex"], "dest": "user"},
+        {"trigger": "go_back", "source": ["transToEnglish", "transToMandarin", "translate", "metaphysics", "latex"], "dest": "user"},
     ],
     initial="user",
     auto_transitions=False,
@@ -62,12 +70,8 @@ def welcome_with_different_title(title, event):
     text = '啥事？'
     btn = [
         MessageTemplateAction(
-            label = '翻譯為英文',
-            text ='trans to en'
-        ),
-        MessageTemplateAction(
-            label = '翻譯為中文',
-            text = 'trans to zh'
+            label = '翻譯',
+            text ='translate'
         ),
         MessageTemplateAction(
             label = '玄學時間',
@@ -81,6 +85,7 @@ def welcome_with_different_title(title, event):
     url = 'https://i.imgur.com/B8Y06MV.jpg'
     # print(f"event.reply_token: {event.reply_token}")
     send_button_message(event.reply_token, title, text, btn, url)
+
 
 # get channel_secret and channel_access_token from your environment variable
 channel_secret = os.getenv("LINE_CHANNEL_SECRET", None)
@@ -150,7 +155,19 @@ def webhook_handler():
             continue
         print(f"\nFSM STATE: {machine.state}")
         print(f"REQUEST BODY: \n{body}")
-        if machine.state == "transToEnglish":
+        if event.message.text.lower() == 'fsm':
+            send_image_message(event.reply_token, URL + '/show-fsm')
+            continue
+        elif machine.state == "translate":
+            if event.message.text == "exit!!":
+                machine.go_back()
+                welcome_with_different_title('Welcome Back!', event)
+                continue
+            response = machine.advance(event)
+            if response == False:
+                send_text_message(event.reply_token, "Invalid input, try again please!")
+            continue
+        elif machine.state == "transToEnglish":
             if event.message.text == "exit!!":
                 machine.go_back()
                 welcome_with_different_title('Welcome Back!', event)
@@ -184,7 +201,8 @@ def webhook_handler():
             formula = r"$$" + event.message.text + r"$$"
             preview(formula, viewer='file', filename='test.png', dvioptions=['-D','1200'])
             url = "test.png"
-            send_image_message(event.reply_token, 'https://a31ddf4f99d7.ngrok.io/test.png')
+            send_image_message(event.reply_token, URL + '/test.png')
+            continue
         response = machine.advance(event)
         if response == False:
             title = '請先選擇要使用的功能'    
