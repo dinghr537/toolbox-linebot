@@ -117,3 +117,22 @@ python app.py
 然後進到`app.py `裡，將`URL`修改為你的域名，並在最下面運行處設定端口，以及之前的`xxx.crt`&`xxx.key` .
 
 之後讓其在背景運行即可可以使用gunicorn，也可以用nohup之類的，隨意就好
+
+### Demo
+
+![QRcode](https://i.imgur.com/YbB3ijJ.png) 
+
+![welcome](https://i.imgur.com/VTfhxRO.jpg)
+
+![translate](https://i.imgur.com/UH2YSf6.png)
+
+![translate-demo](https://i.imgur.com/jf7EUnS.png)
+
+![exitAndTryAnother](https://i.imgur.com/S3W02UU.png)
+
+![what?](https://i.imgur.com/l8zr7kb.png)
+
+![try-latex](https://i.imgur.com/DibikpQ.jpg)
+
+![latex-result](https://i.imgur.com/XyJFOw0.png)
+
