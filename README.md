@@ -5,6 +5,7 @@
 * conda
 * google translate api
 * HTTPS Server
+* latex
 
 #### Install Dependency
 ```sh
@@ -13,42 +14,23 @@ conda create --name line python=3.6
 conda deactivate
 conda activate line
 conda install pygraphviz
-pip install -r requirements
+# install latex
+sudo apt-get install texlive-full
+
+pip install -r requirements.txt
 ```
-
-
 
 
 #### Secret Data
-Please midify  `.env` file to set Environment Variables refer to TA's `.env.sample`.
+Please modify  `.env` file to set Environment Variables refer to TA's `.env.sample`.
 `LINE_CHANNEL_SECRET` and `LINE_CHANNEL_ACCESS_TOKEN` **MUST** be set to proper values.
 Besides, you need another json file for google cloud translation api's authorization. And remember to set the path of the json file in `.env`.
 
-#### Use ngrok to run it
-for mac users, use homebrew:
-```sh
-brew cask install ngrok
-```
 
-**`ngrok` would be used in the following instruction**
-
-```sh
-ngrok http 8000
-```
-
-After that, `ngrok` would generate a https URL.
-
-#### Run the sever ( in your environment )
-
-```sh
-python app.py
-```
-
-
-## Finite State Machine
+### Finite State Machine
 ![fsm](./fsm.png)
 
-## Usage
+### Usage
 The initial state is set to `user`.
 
 You have several choices: go to translate state; go to latex state; go to metaphysics state, or show fsm graph.
@@ -95,5 +77,43 @@ You have several choices: go to translate state; go to latex state; go to metaph
 - type "fsm" to show **fsm** graph
 - type "exit!!" to **exit**.
 
+---
 
+### Deploy
 
+#### Use ngrok to run it
+
+for mac users, use homebrew:
+```sh
+brew cask install ngrok
+```
+
+**`ngrok` would be used in the following instruction**
+
+```sh
+ngrok http 8000
+```
+
+After that, `ngrok` would generate a https URL.
+
+Then Run the app
+
+```sh
+python app.py
+```
+
+#### deploy it on the GCP Virtual Private Server
+
+首先需要有一個自己的域名（買也好，嫖也好，總之是要有一個）
+
+然後設定DNS解析將域名解析到你的server的ip
+
+之後用GitHub上的`acme.sh`從letsencrypt生成證書。
+
+> https://github.com/acmesh-official/acme.sh
+
+之後從GitHub將repo clone下來，按照 Install Dependency 進行環境準備
+
+然後進到`app.py `裡，將`URL`修改為你的域名，並在最下面運行處設定端口，以及之前的`xxx.crt`&`xxx.key` .
+
+之後讓其在背景運行即可可以使用gunicorn，也可以用nohup之類的，隨意就好

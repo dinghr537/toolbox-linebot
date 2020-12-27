@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 
@@ -20,12 +21,12 @@ from utils import send_text_message
 load_dotenv()
 translate_client = translate.Client()
 
-URL = "https://09964949df7a.ngrok.io"
+URL = "https://hrworld.monster:8000"
 
 metaphysics_results = ["尚可", "大吉", "挺不錯的", "可以考慮", "這好嗎？這不好！", "小吉", "凶", "大凶", "你瘋了？", "這種事就隨便啦", "可惜天機不可洩漏"]
 
 machine = TocMachine(
-    states=["user", "translate", "transToEnglish", "transToMandarin", "metaphysics", "latex"],
+    states=["user", "translate", "transToEnglish", "transToMandarin", "transToRussian", "metaphysics", "latex"],
     transitions=[
         {
             "trigger": "advance",
@@ -47,6 +48,12 @@ machine = TocMachine(
         },
         {
             "trigger": "advance",
+            "source": "translate",
+            "dest": "transToRussian",
+            "conditions": "is_going_to_transToRussian",
+        },
+        {
+            "trigger": "advance",
             "source": "user",
             "dest": "metaphysics",
             "conditions": "is_going_to_metaphysics",
@@ -57,7 +64,7 @@ machine = TocMachine(
             "dest": "latex",
             "conditions": "is_going_to_latex",
         },
-        {"trigger": "go_back", "source": ["transToEnglish", "transToMandarin", "translate", "metaphysics", "latex"], "dest": "user"},
+        {"trigger": "go_back", "source": ["transToEnglish", "transToMandarin", "transToRussian", "translate", "metaphysics", "latex"], "dest": "user"},
     ],
     initial="user",
     auto_transitions=False,
@@ -185,6 +192,15 @@ def webhook_handler():
             result = translate_client.translate(event.message.text, target_language=target)
             send_text_message(event.reply_token, html.unescape(result["translatedText"]))
             continue
+        elif machine.state == "transToRussian":
+            if event.message.text == "exit!!":
+                machine.go_back()
+                welcome_with_different_title('Welcome Back!', event)
+                continue
+            target = 'ru'
+            result = translate_client.translate(event.message.text, target_language=target)
+            send_text_message(event.reply_token, html.unescape(result["translatedText"]))
+            continue
         elif machine.state == "metaphysics":
             if event.message.text == "exit!!":
                 machine.go_back()
@@ -230,4 +246,4 @@ def show_latex():
 
 if __name__ == "__main__":
     port = os.environ.get("PORT", 8000)
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, ssl_context=('/usr/local/etc/trojan/cert.crt', '/usr/local/etc/trojan/private.key'))
