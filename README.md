@@ -28,7 +28,7 @@ Besides, you need another json file for google cloud translation api's authoriza
 
 
 ### Finite State Machine
-![fsm](./fsm.png)
+![fsm](https://i.imgur.com/9S12QTk.png)
 
 ### Usage
 The initial state is set to `user`.
